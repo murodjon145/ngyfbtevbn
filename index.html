@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🍕 LimurCoin O'yini</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      margin: 0; padding: 20px 20px 80px; /* pastga extra joy nav uchun */
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    h1 { margin-bottom: 10px; }
+    #coinDisplay, #highScore, #dailyBonusTimer { font-size: 18px; margin: 5px 0; }
+
+    .lemur-img {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      object-fit: cover;
+    }
+
+    .boosters {
+      display: none;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 20px;
+      width: 100%;
+      padding-bottom: 80px; /* nav uchun joy */
+    }
+
+    .booster {
+      background: white;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .booster img {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 5px;
+      object-fit: contain;
+    }
+
+    button {
+      margin: 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .nav {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      background: #fff;
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+      box-shadow: 0 -2px 6px rgba(0,0,0,0.1);
+      z-index: 100;
+    }
+
+    .nav button {
+      flex: 1;
+      font-size: 14px;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🍕 LimurClicker</h1>
+  <div id="coinDisplay">💰 Coin: 0</div>
+  <div id="highScore">🏆 High Score: 0</div>
+  <div id="dailyBonusTimer">🎁 Bonus: tayyor</div>
+
+  <!-- RASM TO‘G‘RI YO‘LDAN -->
+  <img id="pizzaImage" src="/static/images/pizza.png" alt="Pizza" class="lemur-img" />
+
+  <button onclick="getDailyBonus()">🎁 Kunlik bonus (10,000)</button>
+
+  <div class="boosters" id="boosterContainer"></div>
+
+  <!-- HAR DOIM KO‘RINADIGAN NAV -->
+  <div class="nav">
+    <button onclick="showMain()">🏠 Asosiy</button>
+    <button onclick="showBoosters()">🚀 Boostlar</button>
+    <button onclick="visitTelegram()">📣 Telegram</button>
+    <button onclick="visitInstagram()">📸 Instagram</button>
+  </div>
+
+  <audio id="clickSound" src="https://www.soundjay.com/buttons/sounds/button-16.mp3"></audio>
+
+  <script>
+    // JavaScript kodingiz o‘zgarishsiz qoldi – sizda yaxshi yozilgan
+
+    const boosters = [
+      { id: 1, name: "⚡ Tezlik", cost: 100, cps: 1 },
+      { id: 2, name: "🔥 Energiya", cost: 250, cps: 2 },
+      { id: 3, name: "🌟 Super", cost: 500, cps: 5 },
+      { id: 4, name: "💎 Premium", cost: 1000, cps: 10 },
+      { id: 5, name: "🐒 LemurBot", cost: 2000, cps: 20 },
+      { id: 6, name: "🎯 Sniper", cost: 3000, cps: 30 },
+      { id: 7, name: "🧠 AI Booster", cost: 4000, cps: 40 },
+      { id: 8, name: "🚀 Rocket", cost: 5000, cps: 50 },
+      { id: 9, name: "👑 King", cost: 6000, cps: 60 },
+      { id:10, name: "🛸 UFO", cost: 7000, cps: 70 },
+      { id:11, name: "🔮 Magic", cost: 8000, cps: 80 },
+      { id:12, name: "⚙️ Mechanic", cost: 9000, cps: 90 },
+      { id:13, name: "🦾 Cyborg", cost: 10000, cps: 100 },
+      { id:14, name: "🐉 Dragon", cost: 12000, cps: 150 },
+      { id:15, name: "🦄 Unicorn", cost: 14000, cps: 200 },
+      { id:16, name: "🌌 Galaxy", cost: 16000, cps: 250 }
+    ];
+
+    let coins = parseInt(localStorage.getItem('coins')) || 0;
+    let highScore = parseInt(localStorage.getItem('highScore')) || 0;
+    let boosterLevels = JSON.parse(localStorage.getItem('boosterLevels') || "{}");
+    let bonusTakenAt = localStorage.getItem('bonusTakenAt') || null;
+    let telegramBonus = localStorage.getItem('telegramBonus') || "no";
+    let instagramBonus = localStorage.getItem('instagramBonus') || "no";
+
+    const coinDisplay = document.getElementById("coinDisplay");
+    const highScoreDisplay = document.getElementById("highScore");
+    const dailyBonusTimer = document.getElementById("dailyBonusTimer");
+    const boosterContainer = document.getElementById("boosterContainer");
+    const clickSound = document.getElementById("clickSound");
+    const pizzaImage = document.getElementById("pizzaImage");
+
+    function save() {
+      localStorage.setItem('coins', coins);
+      localStorage.setItem('highScore', highScore);
+      localStorage.setItem('boosterLevels', JSON.stringify(boosterLevels));
+      localStorage.setItem('bonusTakenAt', bonusTakenAt);
+      localStorage.setItem('telegramBonus', telegramBonus);
+      localStorage.setItem('instagramBonus', instagramBonus);
+    }
+
+    function updateUI() {
+      coinDisplay.innerText = `💰 Coin: ${coins}`;
+      highScoreDisplay.innerText = `🏆 High Score: ${Math.max(highScore, coins)}`;
+      updateBonusTimer();
+    }
+
+    function collectCoin(count = 1) {
+      coins += count;
+      clickSound.play();
+      if (coins > highScore) highScore = coins;
+      updateUI(); save();
+    }
+
+    pizzaImage.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      const touches = e.touches.length;
+      collectCoin(touches);
+    });
+
+    function levelUpBooster(id) {
+      const booster = boosters.find(b => b.id === id);
+      const level = boosterLevels[id] || 0;
+      if (level >= 100) return alert("🔝 Maksimal levelga yetgan!");
+      const cost = booster.cost * (level + 1);
+      if (coins < cost) return alert("❌ Yetarli coin yo‘q");
+      coins -= cost;
+      boosterLevels[id] = level + 1;
+      updateUI(); save(); renderBoosters();
+    }
+
+    function renderBoosters() {
+      boosterContainer.innerHTML = "";
+      boosters.forEach(b => {
+        const level = boosterLevels[b.id] || 0;
+        const nextCost = b.cost * (level + 1);
+        const div = document.createElement("div");
+        div.className = "booster";
+        div.innerHTML = `
+          <img src="/static/images/booster${b.id}.png" alt="${b.name}">
+          <strong>${b.name}</strong><br>
+          🔼 Level: ${level}/100<br>
+          ⚙️ ${b.cps} coin/s * level<br>
+          <button onclick="levelUpBooster(${b.id})">
+            ${level >= 100 ? '✅ Maks' : `Lv +1 (${nextCost})`}
+          </button>
+        `;
+        boosterContainer.appendChild(div);
+      });
+    }
+
+    function getDailyBonus() {
+      const now = Date.now();
+      if (!bonusTakenAt || now - bonusTakenAt > 86400000) {
+        coins += 10000;
+        bonusTakenAt = now;
+        updateUI(); save();
+        alert("🎉 Kunlik bonus olindi!");
+      } else {
+        alert("⏳ Bonus ertaga tayyor bo‘ladi.");
+      }
+    }
+
+    function updateBonusTimer() {
+      if (!bonusTakenAt) {
+        dailyBonusTimer.innerText = "🎁 Bonus: tayyor";
+        return;
+      }
+      const timeLeft = 86400000 - (Date.now() - bonusTakenAt);
+      if (timeLeft <= 0) {
+        dailyBonusTimer.innerText = "🎁 Bonus: tayyor";
+      } else {
+        const h = Math.floor(timeLeft / 3600000);
+        const m = Math.floor((timeLeft % 3600000) / 60000);
+        dailyBonusTimer.innerText = `🎁 Bonus: ${h} soat ${m} daqiqa`;
+      }
+    }
+
+    function visitTelegram() {
+      if (telegramBonus === "no") {
+        coins += 500000;
+        telegramBonus = "yes";
+        updateUI(); save();
+        window.open("https://t.me/yourchannel", "_blank");
+      } else {
+        alert("Allaqachon olinib bo‘lgan.");
+      }
+    }
+
+    function visitInstagram() {
+      if (instagramBonus === "no") {
+        coins += 500000;
+        instagramBonus = "yes";
+        updateUI(); save();
+        window.open("https://instagram.com/yourpage", "_blank");
+      } else {
+        alert("Allaqachon olinib bo‘lgan.");
+      }
+    }
+
+    function showMain() {
+      pizzaImage.style.display = "block";
+      boosterContainer.style.display = "none";
+    }
+
+    function showBoosters() {
+      pizzaImage.style.display = "none";
+      boosterContainer.style.display = "grid";
+    }
+
+    updateUI();
+    renderBoosters();
+
+    setInterval(() => {
+      boosters.forEach(b => {
+        const level = boosterLevels[b.id] || 0;
+        coins += b.cps * level;
+      });
+      updateUI(); save();
+    }, 1000);
+
+    setInterval(updateBonusTimer, 60000);
+  </script>
+</body>
+</html>
